@@ -51,6 +51,9 @@
         //    // actually used.
         //    .lazy = false,
         //},
+
+        // .sdl = .{ .url = "https://github.com/ikskuh/SDL.zig/archive/172a84e7b5ce7d4891b8b970c68f4532f96aa7e9.tar.gz", .hash = "12203301b49b34b9b7f70326c37c4ed8c23f6326a7a406c4596911afc0971bbf1a5c" },
+        .sdl = .{ .url = "https://github.com/ikskuh/SDL.zig/archive/d2b646e6e78b6bb86eac52742ffd6f339fe84813.tar.gz", .hash = "1220a160b8304f1ee63dfeed2630800382ae93d80e0e04c512f6083cf10ffa4c0810" },
     },
 
     // Specifies the set of files and directories that are included in this package.

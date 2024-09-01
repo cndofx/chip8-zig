@@ -1,4 +1,6 @@
 const std = @import("std");
+const sdl = @import("sdl2");
+
 const Cpu = @import("cpu.zig").Cpu;
 
 pub fn main() !void {
@@ -6,6 +8,16 @@ pub fn main() !void {
 
     const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
     defer allocator.free(rom);
+
+    try sdl.init(.{
+        .video = true,
+        .events = true,
+        .audio = true,
+    });
+    defer sdl.quit();
+
+    var window = try sdl.createWindow("Chip8 Zig", .{ .centered = {} }, .{ .centered = {} }, 640, 480, .{ .vis = .shown });
+    defer window.destroy();
 
     var cpu = Cpu.init();
     cpu.loadRom(rom);
