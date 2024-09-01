@@ -26,7 +26,7 @@ pub fn build(b: *std.Build) void {
     });
 
     sdl_sdk.link(exe, .dynamic, sdl.Library.SDL2);
-    exe.root_module.addImport("sdl2", sdl_sdk.getNativeModule());
+    exe.root_module.addImport("sdl2", sdl_sdk.getWrapperModule());
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
