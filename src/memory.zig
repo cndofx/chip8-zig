@@ -3,25 +3,9 @@ const std = @import("std");
 const memory_size: usize = 4096;
 
 pub const Memory = struct {
-    data: [memory_size]u8 = init(),
+    data: [memory_size]u8,
 
-    pub fn read_byte(self: *Memory, addr: usize) u8 {
-        return self.data[addr];
-    }
-
-    pub fn write_byte(self: *Memory, addr: usize, value: u8) void {
-        self.data[addr] = value;
-    }
-
-    pub fn read_slice(self: *Memory, addr: usize, len: usize) []u8 {
-        return self.data[addr .. addr + len];
-    }
-
-    pub fn write_slice(self: *Memory, addr: usize, value: []const u8) void {
-        std.mem.copyForwards(u8, self.data[addr..], value);
-    }
-
-    fn init() [memory_size]u8 {
+    pub fn init() Memory {
         const font = [_]u8{
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -41,8 +25,26 @@ pub const Memory = struct {
             0xF0, 0x80, 0xF0, 0x80, 0x80, // F
         };
 
-        var data = std.mem.zeroes([memory_size]u8);
-        std.mem.copyForwards(u8, data[0..], font[0..]);
-        return data;
+        var memory = Memory{
+            .data = std.mem.zeroes([memory_size]u8),
+        };
+        std.mem.copyForwards(u8, memory.data[0..], font[0..]);
+        return memory;
+    }
+
+    pub fn read_byte(self: *Memory, addr: usize) u8 {
+        return self.data[addr];
+    }
+
+    pub fn write_byte(self: *Memory, addr: usize, value: u8) void {
+        self.data[addr] = value;
+    }
+
+    pub fn read_slice(self: *Memory, addr: usize, len: usize) []u8 {
+        return self.data[addr .. addr + len];
+    }
+
+    pub fn write_slice(self: *Memory, addr: usize, value: []const u8) void {
+        std.mem.copyForwards(u8, self.data[addr..], value);
     }
 };
