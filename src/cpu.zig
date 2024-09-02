@@ -9,6 +9,7 @@ pub const Cpu = struct {
     memory: Memory,
     display: Display,
     keyboard: Keyboard,
+    random: std.Random,
     pc: u16,
     vx: [16]u8,
     stack: [16]u16,
@@ -18,11 +19,12 @@ pub const Cpu = struct {
     i: u16,
     last_timer_tick: u64,
 
-    pub fn init() Cpu {
+    pub fn init(random: std.Random) Cpu {
         const cpu = Cpu{
             .memory = Memory.init(),
             .display = Display.init(),
             .keyboard = Keyboard.init(),
+            .random = random,
             .pc = 0x200,
             .vx = std.mem.zeroes([16]u8),
             .stack = std.mem.zeroes([16]u16),
@@ -183,6 +185,11 @@ pub const Cpu = struct {
             0xA => {
                 std.log.debug("LD I, {X:0>4}", .{nnn});
                 self.i = nnn;
+                self.pc += 2;
+            },
+            0xC => {
+                std.log.debug("RND V{X}, {X:0>2}", .{ x, kk });
+                self.vx[x] = self.random.int(u8) & kk;
                 self.pc += 2;
             },
             0xD => {

@@ -33,10 +33,16 @@ pub const Memory = struct {
     }
 
     pub fn read_byte(self: *Memory, addr: usize) u8 {
+        if (addr >= memory_size) {
+            return 0;
+        }
         return self.data[addr];
     }
 
     pub fn write_byte(self: *Memory, addr: usize, value: u8) void {
+        if (addr >= memory_size) {
+            return;
+        }
         self.data[addr] = value;
     }
 

@@ -5,7 +5,7 @@ const Cpu = @import("cpu.zig").Cpu;
 const Display = @import("display.zig").Display;
 
 pub const std_options = std.Options{
-    .log_level = .info,
+    .log_level = .debug,
 };
 
 const fps = 60;
@@ -83,7 +83,14 @@ pub fn main() !void {
     var renderer = try sdl.createRenderer(window, null, .{ .accelerated = true });
     defer renderer.destroy();
 
-    var cpu = Cpu.init();
+    var prng = std.Random.DefaultPrng.init(block: {
+        var seed: u64 = undefined;
+        try std.posix.getrandom(std.mem.asBytes(&seed));
+        break :block seed;
+    });
+    const random = prng.random();
+
+    var cpu = Cpu.init(random);
     cpu.loadRom(rom);
 
     var last_time: u64 = 0;
