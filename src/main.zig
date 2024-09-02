@@ -44,6 +44,18 @@ const key_map = [_]sdl.Keycode{
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
+    _ = args.next().?;
+    const second = args.next();
+    var rom_path: []const u8 = undefined;
+    if (second == null) {
+        std.debug.print("usage: chip8 <rom>\n", .{});
+        return;
+    } else {
+        rom_path = second.?;
+    }
+
     const config = Config{
         .bgColor = 0x000000FF,
         .fgColor = 0xFFFFFFFF,
@@ -59,7 +71,7 @@ pub fn main() !void {
     // const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/timendus/3-corax+.ch8", std.math.maxInt(usize)); // pass
     // const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/timendus/4-flags.ch8", std.math.maxInt(usize)); // pass
 
-    const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/INVADERS", std.math.maxInt(usize)); // currently broken
+    const rom = try std.fs.cwd().readFileAlloc(allocator, rom_path, std.math.maxInt(usize)); // currently broken
     defer allocator.free(rom);
 
     try sdl.init(.{
