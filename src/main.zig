@@ -46,15 +46,11 @@ pub fn main() !void {
 
     var args = try std.process.argsWithAllocator(allocator);
     defer args.deinit();
-    _ = args.next().?;
-    const second = args.next();
-    var rom_path: []const u8 = undefined;
-    if (second == null) {
+    _ = args.next();
+    const rom_path = args.next() orelse {
         std.debug.print("usage: chip8 <rom>\n", .{});
         return;
-    } else {
-        rom_path = second.?;
-    }
+    };
 
     const config = Config{
         .bgColor = 0x000000FF,
