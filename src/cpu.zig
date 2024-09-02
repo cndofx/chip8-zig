@@ -1,4 +1,6 @@
 const std = @import("std");
+const sdl = @import("sdl2");
+
 const Memory = @import("memory.zig").Memory;
 const Display = @import("display.zig").Display;
 
@@ -12,6 +14,7 @@ pub const Cpu = struct {
     st: u8,
     dt: u8,
     i: u16,
+    last_timer_tick: u64,
 
     pub fn init() Cpu {
         const cpu = Cpu{
@@ -24,6 +27,7 @@ pub const Cpu = struct {
             .st = 0,
             .dt = 0,
             .i = 0,
+            .last_timer_tick = 0,
         };
 
         return cpu;
@@ -67,6 +71,27 @@ pub const Cpu = struct {
                 std.log.debug("JP {X:0>4}", .{nnn});
                 self.pc = nnn;
             },
+            0x3 => {
+                std.log.debug("SE V{X}, {X:0>2}", .{ x, kk });
+                if (self.vx[x] == kk) {
+                    self.pc += 2;
+                }
+                self.pc += 2;
+            },
+            0x4 => {
+                std.log.debug("SNE V{x}, {X:0>2}", .{ x, kk });
+                if (self.vx[x] != kk) {
+                    self.pc += 2;
+                }
+                self.pc += 2;
+            },
+            0x5 => {
+                std.log.debug("SE V{X}, V{X}", .{ x, y });
+                if (self.vx[x] == self.vx[y]) {
+                    self.pc += 2;
+                }
+                self.pc += 2;
+            },
             0x6 => {
                 std.log.debug("LD V{X}, {X:0>2}", .{ x, kk });
                 self.vx[x] = kk;
@@ -76,6 +101,80 @@ pub const Cpu = struct {
                 std.log.debug("ADD V{X}, {X:0>2}", .{ x, kk });
                 self.vx[x] = self.vx[x] +% kk;
                 self.pc += 2;
+            },
+            0x8 => switch (n) {
+                0x0 => {
+                    std.log.debug("LD V{X}, V{X}", .{ x, y });
+                    self.vx[x] = self.vx[y];
+                    self.pc += 2;
+                },
+                0x1 => {
+                    std.log.debug("OR V{X}, V{X}", .{ x, y });
+                    self.vx[x] |= self.vx[y];
+                    self.pc += 2;
+                },
+                0x2 => {
+                    std.log.debug("AND V{X}, V{X}", .{ x, y });
+                    self.vx[x] &= self.vx[y];
+                    self.pc += 2;
+                },
+                0x3 => {
+                    std.log.debug("XOR V{X}, V{X}", .{ x, y });
+                    self.vx[x] ^= self.vx[y];
+                    self.pc += 2;
+                },
+                0x4 => {
+                    std.log.debug("ADD V{X}, V{X}", .{ x, y });
+                    const sum = @as(u16, self.vx[x]) + @as(u16, self.vx[y]);
+                    if (sum > 0xFF) {
+                        self.vx[0xF] = 1;
+                    } else {
+                        self.vx[0xF] = 0;
+                    }
+                    self.vx[x] = @intCast(sum & 0xFF);
+                    self.pc += 2;
+                },
+                0x5 => {
+                    std.log.debug("ADD V{X}, V{X}", .{ x, y });
+                    if (self.vx[x] > self.vx[y]) {
+                        self.vx[0xF] = 1;
+                    } else {
+                        self.vx[0xF] = 0;
+                    }
+                    self.vx[x] = self.vx[x] -% self.vx[y];
+                    self.pc += 2;
+                },
+                0x6 => {
+                    std.log.debug("SHR V{X}, V{X}", .{ x, y });
+                    if (self.vx[x] & 0b00000001 != 0) {
+                        self.vx[0xF] = 1;
+                    } else {
+                        self.vx[0xF] = 0;
+                    }
+                    self.vx[x] = self.vx[x] >> 1;
+                    self.pc += 2;
+                },
+                0x7 => {
+                    std.log.debug("SUBN V{X}, V{X}", .{ x, y });
+                    if (self.vx[y] > self.vx[x]) {
+                        self.vx[0xF] = 1;
+                    } else {
+                        self.vx[0xF] = 0;
+                    }
+                    self.vx[y] = self.vx[y] -% self.vx[x];
+                    self.pc += 2;
+                },
+                0xE => {
+                    std.log.debug("SHL V{X}, V{X}", .{ x, y });
+                    if (self.vx[x] & 0b10000000 != 0) {
+                        self.vx[0xF] = 1;
+                    } else {
+                        self.vx[0xF] = 0;
+                    }
+                    self.vx[x] = self.vx[x] << 1;
+                    self.pc += 2;
+                },
+                else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
             },
             0xA => {
                 std.log.debug("LD I, {X:0>4}", .{nnn});
@@ -95,13 +194,38 @@ pub const Cpu = struct {
                 // self.display.print();
                 self.pc += 2;
             },
+            0xF => {
+                switch (kk) {
+                    0x15 => {
+                        std.log.debug("LD DT, V{X}", .{x});
+                        self.dt = self.vx[x];
+                        self.pc += 2;
+                    },
+                    else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
+                }
+            },
             else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
         }
 
         std.log.debug("\n", .{});
+        self.tick();
     }
 
-    pub fn printState(self: *Cpu) void {
+    fn tick(self: *Cpu) void {
+        const wait_ticks = 16; // 16ms, 60 timer ticks per second
+        const current_tick = sdl.getTicks64();
+        if (current_tick - self.last_timer_tick > wait_ticks) {
+            self.last_timer_tick = current_tick;
+            if (self.dt > 0) {
+                self.dt -= 1;
+            }
+            if (self.st > 0) {
+                self.st -= 1;
+            }
+        }
+    }
+
+    fn printState(self: *Cpu) void {
         std.log.debug("CPU State:", .{});
         std.log.debug("VX: {X:0>2}", .{self.vx});
         std.log.debug("Stack: {X:0>4}", .{self.stack});

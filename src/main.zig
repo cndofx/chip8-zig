@@ -5,7 +5,7 @@ const Cpu = @import("cpu.zig").Cpu;
 const Display = @import("display.zig").Display;
 
 pub const std_options = std.Options{
-    .log_level = .info,
+    .log_level = .debug,
 };
 
 const fps = 60;
@@ -26,7 +26,8 @@ pub fn main() !void {
         .freq = 1000,
     };
 
-    const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
+    // const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
+    const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/c8_test.c8", std.math.maxInt(usize));
     defer allocator.free(rom);
 
     try sdl.init(.{
@@ -45,7 +46,7 @@ pub fn main() !void {
     var cpu = Cpu.init();
     cpu.loadRom(rom);
 
-    var last_time: u32 = 0;
+    var last_time: u64 = 0;
     mainLoop: while (true) {
         while (sdl.pollEvent()) |ev| {
             switch (ev) {
@@ -64,7 +65,7 @@ pub fn main() !void {
         while (sdl.getTicks() - last_time < ticks_per_frame) {
             sdl.delay(1);
         }
-        last_time = sdl.getTicks();
+        last_time = sdl.getTicks64();
     }
 }
 
