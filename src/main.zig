@@ -4,6 +4,9 @@ const sdl = @import("sdl2");
 const Cpu = @import("cpu.zig").Cpu;
 const display = @import("display.zig");
 
+const fps = 60;
+const ticks_per_frame = 1000 / fps;
+
 const Config = struct {
     bgColor: u32,
     fgColor: u32,
@@ -16,7 +19,7 @@ pub fn main() !void {
     const config = Config{
         .bgColor = 0x000000FF,
         .fgColor = 0xFFFFFFFF,
-        .freq = 100,
+        .freq = 1,
     };
 
     const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
@@ -38,6 +41,7 @@ pub fn main() !void {
     var cpu = Cpu.init();
     cpu.loadRom(rom);
 
+    var last_time: u32 = 0;
     mainLoop: while (true) {
         while (sdl.pollEvent()) |ev| {
             switch (ev) {
@@ -46,9 +50,18 @@ pub fn main() !void {
             }
         }
 
+        while (sdl.getTicks() - last_time < ticks_per_frame) {
+            sdl.delay(1);
+        }
+
         try render(&renderer, &cpu.display, config.bgColor, config.fgColor);
         renderer.present();
-        cpu.step();
+
+        for (0..config.freq) |_| {
+            cpu.step();
+        }
+
+        last_time = sdl.getTicks();
     }
 }
 
