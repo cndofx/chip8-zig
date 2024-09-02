@@ -33,6 +33,9 @@ pub const Display = struct {
 
         var erased = false;
         for (0..8) |_| {
+            if (x2 >= width or y2 >= height) {
+                continue;
+            }
             const i = y2 * width + x2;
             const old = self.pixels[i];
             self.pixels[i] ^= (byte2 & 0b10000000) >> 7;

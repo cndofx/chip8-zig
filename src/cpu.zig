@@ -187,6 +187,10 @@ pub const Cpu = struct {
                 self.i = nnn;
                 self.pc += 2;
             },
+            0xB => {
+                std.log.debug("JP V0, {X:0>4}", .{nnn});
+                self.pc = nnn + self.vx[0];
+            },
             0xC => {
                 std.log.debug("RND V{X}, {X:0>2}", .{ x, kk });
                 self.vx[x] = self.random.int(u8) & kk;
