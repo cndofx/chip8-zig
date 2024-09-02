@@ -3,10 +3,12 @@ const sdl = @import("sdl2");
 
 const Memory = @import("memory.zig").Memory;
 const Display = @import("display.zig").Display;
+const Keyboard = @import("keyboard.zig").Keyboard;
 
 pub const Cpu = struct {
     memory: Memory,
     display: Display,
+    keyboard: Keyboard,
     pc: u16,
     vx: [16]u8,
     stack: [16]u16,
@@ -20,6 +22,7 @@ pub const Cpu = struct {
         const cpu = Cpu{
             .memory = Memory.init(),
             .display = Display.init(),
+            .keyboard = Keyboard.init(),
             .pc = 0x200,
             .vx = std.mem.zeroes([16]u8),
             .stack = std.mem.zeroes([16]u16),
@@ -59,16 +62,25 @@ pub const Cpu = struct {
         std.log.debug("Executing instruction {X:0>4}", .{inst});
 
         switch ((inst & 0xF000) >> 12) {
-            0x0 => switch (kk) {
+            0x0 => switch (nnn) {
                 0xE0 => {
-                    std.log.debug("CLS\n", .{});
+                    std.log.info("CLS", .{});
                     self.display.clear();
                     self.pc += 2;
+                },
+                0xEE => {
+                    std.log.debug("RET", .{});
+                    self.pc = self.pop();
                 },
                 else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
             },
             0x1 => {
                 std.log.debug("JP {X:0>4}", .{nnn});
+                self.pc = nnn;
+            },
+            0x2 => {
+                std.log.debug("CALL {X:0>4}", .{nnn});
+                self.push(self.pc + 2);
                 self.pc = nnn;
             },
             0x3 => {
@@ -126,55 +138,47 @@ pub const Cpu = struct {
                 0x4 => {
                     std.log.debug("ADD V{X}, V{X}", .{ x, y });
                     const sum = @as(u16, self.vx[x]) + @as(u16, self.vx[y]);
-                    if (sum > 0xFF) {
-                        self.vx[0xF] = 1;
-                    } else {
-                        self.vx[0xF] = 0;
-                    }
+                    const flag: u8 = if (sum > 0xFF) 1 else 0;
                     self.vx[x] = @intCast(sum & 0xFF);
+                    self.vx[0xF] = flag;
                     self.pc += 2;
                 },
                 0x5 => {
-                    std.log.debug("ADD V{X}, V{X}", .{ x, y });
-                    if (self.vx[x] > self.vx[y]) {
-                        self.vx[0xF] = 1;
-                    } else {
-                        self.vx[0xF] = 0;
-                    }
+                    std.log.debug("SUB V{X}, V{X}", .{ x, y });
+                    const flag: u8 = if (self.vx[x] >= self.vx[y]) 1 else 0;
                     self.vx[x] = self.vx[x] -% self.vx[y];
+                    self.vx[0xF] = flag;
                     self.pc += 2;
                 },
                 0x6 => {
                     std.log.debug("SHR V{X}, V{X}", .{ x, y });
-                    if (self.vx[x] & 0b00000001 != 0) {
-                        self.vx[0xF] = 1;
-                    } else {
-                        self.vx[0xF] = 0;
-                    }
+                    const flag: u8 = if (self.vx[x] & 0b00000001 != 0) 1 else 0;
                     self.vx[x] = self.vx[x] >> 1;
+                    self.vx[0xF] = flag;
                     self.pc += 2;
                 },
                 0x7 => {
                     std.log.debug("SUBN V{X}, V{X}", .{ x, y });
-                    if (self.vx[y] > self.vx[x]) {
-                        self.vx[0xF] = 1;
-                    } else {
-                        self.vx[0xF] = 0;
-                    }
-                    self.vx[y] = self.vx[y] -% self.vx[x];
+                    const flag: u8 = if (self.vx[y] >= self.vx[x]) 1 else 0;
+                    self.vx[x] = self.vx[y] -% self.vx[x];
+                    self.vx[0xF] = flag;
                     self.pc += 2;
                 },
                 0xE => {
                     std.log.debug("SHL V{X}, V{X}", .{ x, y });
-                    if (self.vx[x] & 0b10000000 != 0) {
-                        self.vx[0xF] = 1;
-                    } else {
-                        self.vx[0xF] = 0;
-                    }
+                    const flag: u8 = if (self.vx[x] & 0b10000000 != 0) 1 else 0;
                     self.vx[x] = self.vx[x] << 1;
+                    self.vx[0xF] = flag;
                     self.pc += 2;
                 },
                 else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
+            },
+            0x9 => {
+                std.log.debug("SNE V{X}, V{X}", .{ x, y });
+                if (self.vx[x] != self.vx[y]) {
+                    self.pc += 2;
+                }
+                self.pc += 2;
             },
             0xA => {
                 std.log.debug("LD I, {X:0>4}", .{nnn});
@@ -191,24 +195,100 @@ pub const Cpu = struct {
                 } else {
                     self.vx[0xF] = 0;
                 }
-                // self.display.print();
                 self.pc += 2;
             },
-            0xF => {
-                switch (kk) {
-                    0x15 => {
-                        std.log.debug("LD DT, V{X}", .{x});
-                        self.dt = self.vx[x];
+            0xE => switch (kk) {
+                0x9E => {
+                    std.log.debug("SKP V{X}", .{x});
+                    if (self.keyboard.keys[self.vx[x]]) {
                         self.pc += 2;
-                    },
-                    else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
-                }
+                    }
+                    self.pc += 2;
+                },
+                0xA1 => {
+                    std.log.debug("SKNP V{X}", .{x});
+                    if (!self.keyboard.keys[self.vx[x]]) {
+                        self.pc += 2;
+                    }
+                    self.pc += 2;
+                },
+                else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
             },
+            0xF => switch (kk) {
+                0x07 => {
+                    std.log.debug("LD V{X}, DT", .{x});
+                    self.vx[x] = self.dt;
+                    self.pc += 2;
+                },
+                0x0A => {
+                    std.log.debug("LD V{X}, K", .{x});
+                    const key = self.keyboard.get_pressed();
+                    if (key != null) {
+                        self.vx[x] = key.?;
+                        self.pc += 2;
+                    }
+                },
+                0x15 => {
+                    std.log.debug("LD DT, V{X}", .{x});
+                    self.dt = self.vx[x];
+                    self.pc += 2;
+                },
+                0x18 => {
+                    std.log.debug("LD ST, V{X}", .{x});
+                    self.st = self.vx[x];
+                    self.pc += 2;
+                },
+                0x1E => {
+                    std.log.debug("ADD I, V{X}", .{x});
+                    self.i = self.i +% self.vx[x];
+                    self.pc += 2;
+                },
+                0x29 => {
+                    std.log.debug("LD F, V{X}", .{x});
+                    self.i = @as(u16, self.vx[x]) * 5;
+                    self.pc += 2;
+                },
+                0x33 => {
+                    std.log.debug("LD B, V{X}", .{x});
+                    const vx = self.vx[x];
+                    const hundreds = (vx / 100) % 10;
+                    const tens = (vx / 10) % 10;
+                    const ones = (vx / 1) % 10;
+                    self.memory.write_slice(self.i, &[_]u8{ hundreds, tens, ones });
+                    self.pc += 2;
+                },
+                0x55 => {
+                    std.log.debug("LD [I], V{X}", .{x});
+                    for (0..x + 1) |i| {
+                        self.memory.write_byte(self.i + i, self.vx[i]);
+                    }
+                    self.pc += 2;
+                },
+                0x65 => {
+                    std.log.debug("LD V{X}, [I]", .{x});
+                    for (0..x + 1) |i| {
+                        self.vx[i] = self.memory.read_byte(self.i + i);
+                    }
+                    self.pc += 2;
+                },
+                else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
+            },
+
             else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
         }
 
         std.log.debug("\n", .{});
         self.tick();
+    }
+
+    fn push(self: *Cpu, value: u16) void {
+        self.stack[self.sp] = value;
+        self.sp += 1;
+    }
+
+    fn pop(self: *Cpu) u16 {
+        self.sp -= 1;
+        return self.stack[self.sp];
     }
 
     fn tick(self: *Cpu) void {
