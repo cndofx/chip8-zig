@@ -5,7 +5,7 @@ const Cpu = @import("cpu.zig").Cpu;
 const Display = @import("display.zig").Display;
 
 pub const std_options = std.Options{
-    .log_level = .debug,
+    .log_level = .info,
 };
 
 const fps = 60;

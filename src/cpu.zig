@@ -144,6 +144,7 @@ pub const Cpu = struct {
                 },
                 0x6 => {
                     std.log.debug("SHR V{X}, V{X}", .{ x, y });
+                    self.vx[x] = self.vx[y];
                     const flag: u8 = if (self.vx[x] & 0b00000001 != 0) 1 else 0;
                     self.vx[x] = self.vx[x] >> 1;
                     self.vx[0xF] = flag;
@@ -156,6 +157,7 @@ pub const Cpu = struct {
                 },
                 0xE => {
                     std.log.debug("SHL V{X}, V{X}", .{ x, y });
+                    self.vx[x] = self.vx[y];
                     const flag: u8 = if (self.vx[x] & 0b10000000 != 0) 1 else 0;
                     self.vx[x] = self.vx[x] << 1;
                     self.vx[0xF] = flag;
@@ -190,7 +192,7 @@ pub const Cpu = struct {
                 } else {
                     self.vx[0xF] = 0;
                 }
-                self.display.print();
+                // self.display.print();
             },
             0xE => switch (kk) {
                 0x9E => {
