@@ -2,9 +2,22 @@ const std = @import("std");
 const sdl = @import("sdl2");
 
 const Cpu = @import("cpu.zig").Cpu;
+const display = @import("display.zig");
+
+const Config = struct {
+    bgColor: u32,
+    fgColor: u32,
+    freq: u32,
+};
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
+
+    const config = Config{
+        .bgColor = 0x000000FF,
+        .fgColor = 0xFFFFFFFF,
+        .freq = 100,
+    };
 
     const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
     defer allocator.free(rom);
@@ -16,7 +29,7 @@ pub fn main() !void {
     });
     defer sdl.quit();
 
-    var window = try sdl.createWindow("Chip8 Zig", .{ .centered = {} }, .{ .centered = {} }, 640, 480, .{ .vis = .shown });
+    var window = try sdl.createWindow("Chip8 Zig", .{ .centered = {} }, .{ .centered = {} }, 640, 320, .{ .vis = .shown, .resizable = true });
     defer window.destroy();
 
     var renderer = try sdl.createRenderer(window, null, .{ .accelerated = true });
@@ -33,12 +46,39 @@ pub fn main() !void {
             }
         }
 
-        try renderer.setColorRGB(0xF7, 0xA4, 0x1D);
-        try renderer.clear();
-
-        cpu.step();
+        try render(&renderer, &cpu.display, config.bgColor, config.fgColor);
         renderer.present();
+        cpu.step();
     }
+}
+
+fn unpackColor(color: u32) sdl.Color {
+    const r: u8 = @intCast((color >> 24) & 0xFF);
+    const g: u8 = @intCast((color >> 16) & 0xFF);
+    const b: u8 = @intCast((color >> 8) & 0xFF);
+    const a: u8 = @intCast((color >> 0) & 0xFF);
+    return sdl.Color.rgba(r, g, b, a);
+}
+
+fn render(renderer: *sdl.Renderer, disp: *const display.Display, bgColor: u32, fgColor: u32) !void {
+    const texture = try sdl.createTexture(renderer.*, sdl.PixelFormatEnum.rgba8888, sdl.Texture.Access.target, display.width, display.height);
+    defer texture.destroy();
+
+    try renderer.setTarget(texture);
+    try renderer.setColor(unpackColor(fgColor));
+    for (0..display.width) |x| {
+        for (0..display.height) |y| {
+            const i = y * display.width + x;
+            if (disp.pixels[i] != 0) {
+                try renderer.drawPoint(@intCast(x), @intCast(y));
+            }
+        }
+    }
+
+    try renderer.setTarget(null);
+    try renderer.setColor(unpackColor(bgColor));
+    try renderer.clear();
+    try renderer.copy(texture, null, null);
 }
 
 test "simple test" {

@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const width: usize = 64;
-const height: usize = 32;
+pub const width: usize = 64;
+pub const height: usize = 32;
 
 pub const Display = struct {
     pixels: [width * height]u8,
