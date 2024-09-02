@@ -190,6 +190,7 @@ pub const Cpu = struct {
                 } else {
                     self.vx[0xF] = 0;
                 }
+                self.display.print();
             },
             0xE => switch (kk) {
                 0x9E => {

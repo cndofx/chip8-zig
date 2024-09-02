@@ -147,6 +147,8 @@ fn render(renderer: *sdl.Renderer, display: *const Display, bgColor: u32, fgColo
     defer texture.destroy();
 
     try renderer.setTarget(texture);
+    try renderer.setColor(unpackColor(bgColor));
+    try renderer.clear();
     try renderer.setColor(unpackColor(fgColor));
     for (0..Display.width) |x| {
         for (0..Display.height) |y| {
