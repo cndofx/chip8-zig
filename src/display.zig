@@ -1,10 +1,10 @@
 const std = @import("std");
 
-pub const width: usize = 64;
-pub const height: usize = 32;
-
 pub const Display = struct {
     pixels: [width * height]u8,
+
+    pub const width: usize = 64;
+    pub const height: usize = 32;
 
     pub fn init() Display {
         return Display{ .pixels = std.mem.zeroes([width * height]u8) };
@@ -45,16 +45,16 @@ pub const Display = struct {
         return erased;
     }
 
-    pub fn print(self: *Display) void {
-        for (0..height) |y| {
-            for (0..width) |x| {
-                if (self.pixels[y * width + x] == 0) {
-                    std.debug.print(" ", .{});
-                } else {
-                    std.debug.print("#", .{});
-                }
-            }
-            std.debug.print("\n", .{});
-        }
-    }
+    // pub fn print(self: *Display) void {
+    //     for (0..height) |y| {
+    //         for (0..width) |x| {
+    //             if (self.pixels[y * width + x] == 0) {
+    //                 std.debug.print(" ", .{});
+    //             } else {
+    //                 std.debug.print("#", .{});
+    //             }
+    //         }
+    //         std.debug.print("\n", .{});
+    //     }
+    // }
 };

@@ -52,38 +52,38 @@ pub const Cpu = struct {
         const y: u8 = @intCast((inst & 0x00F0) >> 4); // 4-bit value, upper 4 bits of lower byte
 
         self.printState();
-        std.debug.print("Executing instruction {X:0>4}\n", .{inst});
+        std.log.debug("Executing instruction {X:0>4}", .{inst});
 
         switch ((inst & 0xF000) >> 12) {
             0x0 => switch (kk) {
                 0xE0 => {
-                    std.debug.print("CLS\n", .{});
+                    std.log.debug("CLS\n", .{});
                     self.display.clear();
                     self.pc += 2;
                 },
                 else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
             },
             0x1 => {
-                std.debug.print("JP {X:0>4}\n", .{nnn});
+                std.log.debug("JP {X:0>4}", .{nnn});
                 self.pc = nnn;
             },
             0x6 => {
-                std.debug.print("LD V{X}, {X:0>2}\n", .{ x, kk });
+                std.log.debug("LD V{X}, {X:0>2}", .{ x, kk });
                 self.vx[x] = kk;
                 self.pc += 2;
             },
             0x7 => {
-                std.debug.print("ADD V{X}, {X:0>2}\n", .{ x, kk });
+                std.log.debug("ADD V{X}, {X:0>2}", .{ x, kk });
                 self.vx[x] = self.vx[x] +% kk;
                 self.pc += 2;
             },
             0xA => {
-                std.debug.print("LD I, {X:0>4}\n", .{nnn});
+                std.log.debug("LD I, {X:0>4}", .{nnn});
                 self.i = nnn;
                 self.pc += 2;
             },
             0xD => {
-                std.debug.print("DRW V{X}, V{X}, {X}\n", .{ x, y, n });
+                std.log.debug("DRW V{X}, V{X}, {X}", .{ x, y, n });
                 const vx = self.vx[x];
                 const vy = self.vx[y];
                 const sprite = self.memory.read_slice(self.i, n);
@@ -92,21 +92,23 @@ pub const Cpu = struct {
                 } else {
                     self.vx[0xF] = 0;
                 }
-                self.display.print();
+                // self.display.print();
                 self.pc += 2;
             },
             else => std.debug.panic("unrecognized instruction: {X:0>4}\n", .{inst}),
         }
 
-        std.debug.print("\n", .{});
+        std.log.debug("\n", .{});
     }
 
     pub fn printState(self: *Cpu) void {
-        std.debug.print("CPU State:\n", .{});
-        std.debug.print("VX: {X:0>2}\n", .{self.vx});
-        std.debug.print("Stack: {X:0>4}\n", .{self.stack});
-        std.debug.print("SP: {X:0>2} PC: {X:0>4} I: {X:0>4}\n", .{ self.sp, self.pc, self.i });
-        std.debug.print("DT: {X:0>2} ST: {X:0>2}\n", .{ self.dt, self.st });
+        std.log.debug("CPU State:", .{});
+        std.log.debug("VX: {X:0>2}", .{self.vx});
+        std.log.debug("Stack: {X:0>4}", .{self.stack});
+        std.log.debug("SP: {X:0>2} PC: {X:0>4} I: {X:0>4}", .{ self.sp, self.pc, self.i });
+        std.log.debug("DT: {X:0>2} ST: {X:0>2}", .{ self.dt, self.st });
+
+        // ====
 
         // if (self.sp > 0) {
         //     std.debug.print("Stack: [\n", .{});

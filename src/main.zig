@@ -2,7 +2,11 @@ const std = @import("std");
 const sdl = @import("sdl2");
 
 const Cpu = @import("cpu.zig").Cpu;
-const display = @import("display.zig");
+const Display = @import("display.zig").Display;
+
+pub const std_options = std.Options{
+    .log_level = .info,
+};
 
 const fps = 60;
 const ticks_per_frame = 1000 / fps;
@@ -19,7 +23,7 @@ pub fn main() !void {
     const config = Config{
         .bgColor = 0x000000FF,
         .fgColor = 0xFFFFFFFF,
-        .freq = 1,
+        .freq = 1000,
     };
 
     const rom = try std.fs.cwd().readFileAlloc(allocator, "roms/IBM Logo.ch8", std.math.maxInt(usize));
@@ -32,7 +36,7 @@ pub fn main() !void {
     });
     defer sdl.quit();
 
-    var window = try sdl.createWindow("Chip8 Zig", .{ .centered = {} }, .{ .centered = {} }, 640, 320, .{ .vis = .shown, .resizable = true });
+    var window = try sdl.createWindow("Chip8 Zig", .{ .centered = {} }, .{ .centered = {} }, 1280, 640, .{ .vis = .shown, .resizable = true });
     defer window.destroy();
 
     var renderer = try sdl.createRenderer(window, null, .{ .accelerated = true });
@@ -50,10 +54,6 @@ pub fn main() !void {
             }
         }
 
-        while (sdl.getTicks() - last_time < ticks_per_frame) {
-            sdl.delay(1);
-        }
-
         try render(&renderer, &cpu.display, config.bgColor, config.fgColor);
         renderer.present();
 
@@ -61,6 +61,9 @@ pub fn main() !void {
             cpu.step();
         }
 
+        while (sdl.getTicks() - last_time < ticks_per_frame) {
+            sdl.delay(1);
+        }
         last_time = sdl.getTicks();
     }
 }
@@ -73,16 +76,16 @@ fn unpackColor(color: u32) sdl.Color {
     return sdl.Color.rgba(r, g, b, a);
 }
 
-fn render(renderer: *sdl.Renderer, disp: *const display.Display, bgColor: u32, fgColor: u32) !void {
-    const texture = try sdl.createTexture(renderer.*, sdl.PixelFormatEnum.rgba8888, sdl.Texture.Access.target, display.width, display.height);
+fn render(renderer: *sdl.Renderer, display: *const Display, bgColor: u32, fgColor: u32) !void {
+    const texture = try sdl.createTexture(renderer.*, sdl.PixelFormatEnum.rgba8888, sdl.Texture.Access.target, Display.width, Display.height);
     defer texture.destroy();
 
     try renderer.setTarget(texture);
     try renderer.setColor(unpackColor(fgColor));
-    for (0..display.width) |x| {
-        for (0..display.height) |y| {
-            const i = y * display.width + x;
-            if (disp.pixels[i] != 0) {
+    for (0..Display.width) |x| {
+        for (0..Display.height) |y| {
+            const i = y * Display.width + x;
+            if (display.pixels[i] != 0) {
                 try renderer.drawPoint(@intCast(x), @intCast(y));
             }
         }
